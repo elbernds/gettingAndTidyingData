@@ -1,0 +1,155 @@
+---
+title: "Human Activity Recognition Using Smartphones Dataset Analysis Codebook"
+author: "Elbern D. Sioquim"
+date: "31 May 2020"
+output: md_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Code book for Analyzing the Human Activity Recognition Using Smartphones Data Set
+
+This is a markdown document that describes how the Human Activity Recognition Using Smartphones Data Set was processed in order
+to create a new tidy data set that calculates the average of the mean and standard deviation features that were extracted from
+the original data set. The calculated average was based on the subject and activity performed by each subject which is shown in
+the summary of the final data set.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+create_data_set <- function(type) {
+    
+    startFilePath <- "getdata_projectfiles_UCI HAR Dataset/UCI HAR Dataset/"
+    fileExtension <- ".txt"
+    
+    ## read activity data set
+    filePath <- paste0(startFilePath, type, "/y_", type, fileExtension)
+    activityDataSet <- read.table(filePath, header=FALSE, col.names = "activityCode")
+    
+    ## left outer join activity labels with activityDataSet to match the activity labels
+    library(plyr)
+    activityDataSetWithLabel <- join(activityDataSet,activityLabelsTable)
+    
+    ## read subject data set
+    filePath <- paste0(startFilePath, type, "/subject_", type, fileExtension)
+    subjectDataSet <- read.table(filePath, header=FALSE, col.names = "subject")
+    
+    ## read main data set and add column names in the data set based on features
+    filePath <- paste0(startFilePath, type, "/X_", type, fileExtension)
+    humanActivityRecognitionDataSet <- read.table(filePath,
+                                                  header=FALSE,
+                                                  col.names = featuresTable$featureName,
+                                                  check.names=FALSE)
+    
+    ## bind acitivity name into the main data set
+    humanActivityRecognitionDataSet <- cbind(activityName = activityDataSetWithLabel$activityName , humanActivityRecognitionDataSet)
+    
+    ## bind subject code into the main data set
+    humanActivityRecognitionDataSet <- cbind(subject = subjectDataSet$subject , humanActivityRecognitionDataSet)
+    
+}
+```
+
+## 1. Read the activity labels data and add variable names for the columns
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+## read acticvity labels
+activityLabelsTable <- read.table("getdata_projectfiles_UCI HAR Dataset/UCI HAR Dataset/activity_labels.txt",
+                                  header=FALSE,
+                                  sep = "",
+                                  col.names = c("activityCode","activityName"))
+print(activityLabelsTable)
+```
+
+## 2. Replace the underscore characters with space and convert the activity name to lowercase
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+## convert to lowercase and replace special characters
+activityLabelsTable$activityName <- tolower(activityLabelsTable$activityName)
+activityLabelsTable$activityName <- gsub('_', ' ', activityLabelsTable$activityName)
+
+print(activityLabelsTable)
+```
+
+## 3. Read the features info data into a data frame
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+## read features
+featuresTable <- read.table("getdata_projectfiles_UCI HAR Dataset/UCI HAR Dataset/features.txt",
+                            header=FALSE,
+                            sep = "",
+                            col.names = c("featureIndex","featureName"))
+
+print(featuresTable)
+```
+
+## 4. Read and create the data sets for test and train and include the subject and activityName variables.
+
+A join was used to set the activityName variable using the activity labels and was column-binded to the
+test or train data set. For the subject variable, it was directly column-binded to the data set since we
+only need the subject code.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+## read and create the test and train data sets
+humanActivityRecognitionTestDataSet <- create_data_set("test")
+```
+## Test data set
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+str(humanActivityRecognitionTestDataSet)
+humanActivityRecognitionTrainDataSet <- create_data_set("train")
+```
+## Train data set
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+str(humanActivityRecognitionTrainDataSet)
+```
+
+## 5. Merge the test and train data sets and remove special characters from the variable names
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+## merge the test and train data sets
+mergedTestAndTrainDataSets <- rbind(humanActivityRecognitionTestDataSet,
+                                    humanActivityRecognitionTrainDataSet)
+
+## tidy column names
+names(mergedTestAndTrainDataSets) <- tolower(names(mergedTestAndTrainDataSets))
+names(mergedTestAndTrainDataSets) <- gsub("[^[:alnum:]]","",names(mergedTestAndTrainDataSets))
+
+str(mergedTestAndTrainDataSets)
+```
+
+## 6. Create a new data set which would include the mean and standard deviation of the features
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+## extract the mean and standard deviation for each measurement
+mergedMeanAndStdDevDataSet <- mergedTestAndTrainDataSets[,grepl("subject|activity|mean|std", names(mergedTestAndTrainDataSets))]
+
+str(mergedMeanAndStdDevDataSet)
+```
+
+## 7. Create a new data set by calculating the mean of the data based on activity and subject
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+## create a new data by calculating the mean of the data based on activity and subject
+library(dplyr)
+meanBasedOnActivtyAndSubjectDataSet <- mergedMeanAndStdDevDataSet %>% group_by(subject, activityname) %>% summarise_all(mean)
+```
+
+## Output the new tidy data set into a text file
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+## output to file the final data set containing the calculated data
+write.table(meanBasedOnActivtyAndSubjectDataSet, file = "meanBasedOnActivtyAndSubjectDataSet.txt", sep = "\t", row.names = FALSE, col.names = TRUE)
+print("meanBasedOnActivtyAndSubjectDataSet.txt")
+```
+## Dimensions of final data set
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+textOutput <- paste("Number of observations :", nrow(meanBasedOnActivtyAndSubjectDataSet))
+print(textOutput)
+textOutput <- paste("Number of variables :", ncol(meanBasedOnActivtyAndSubjectDataSet))
+print(textOutput)
+```
+
+## Structure of final data set
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+str(meanBasedOnActivtyAndSubjectDataSet)
+```
+
+## Summary of final data set
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+summary(meanBasedOnActivtyAndSubjectDataSet)
+```
+
